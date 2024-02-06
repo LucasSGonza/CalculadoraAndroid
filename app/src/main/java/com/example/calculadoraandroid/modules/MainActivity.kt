@@ -11,6 +11,7 @@ import com.example.calculadoraandroid.databinding.ActivityMainBinding
 import com.notkamui.keval.Keval
 import com.notkamui.keval.KevalInvalidExpressionException
 import com.notkamui.keval.KevalZeroDivisionException
+import kotlin.math.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -164,7 +165,8 @@ class MainActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-                calculation.text = String.format("%.5s", result)
+//                calculation.text = String.format("%.5s", result)
+                calculation.text = result
                 isTheLastDigitANumber = false
                 isTheLastDigitAOperator = false
             }
@@ -184,11 +186,16 @@ class MainActivity : AppCompatActivity() {
     private fun setupCalculationListener() {
         binding.spaceForCalculation.doOnTextChanged { text, _, _, _ ->
             text?.let {
-                var expression = text.toString().replace("x", "*")
-                Log.i("success", "expression: $expression")
+                var expression = text.toString()
+                    .replace("x", "*")
+                    .replace("$result","(0$result)")
+
+                Log.i("success", "expression1: $expression")
+//                Log.i("success", "result1: $result")
+
                 try {
                     result = Keval.eval(expression).toString()
-                    Log.i("success", "result: $result")
+                    Log.i("success", "result after calc: $result")
                 } catch (e: KevalInvalidExpressionException) {
                     Log.e("error", "$e")
                 } catch (e: KevalZeroDivisionException) {
