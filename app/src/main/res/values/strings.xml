@@ -3,4 +3,5 @@
     <string name="calculation">Cálculo</string>
     <string name="error_default">Erro</string>
     <string name="error_division_by_zero">Não é possível fazer divisões por zero!</string>
+    <string name="error_max_number_lenght">Número máximo de dígitos (13) excedido</string>
 </resources>

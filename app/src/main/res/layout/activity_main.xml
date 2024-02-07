@@ -10,32 +10,46 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="100dp"
+        android:layout_marginBottom="60dp"
+        android:layout_marginEnd="10dp"
         android:hint="@string/calculation"
+        android:maxLength="30"
         android:textAlignment="textEnd"
         android:textColor="@color/black"
         android:textSize="50sp"
+        app:layout_constraintBottom_toTopOf="@id/first_row"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        />
+
+    <ImageButton
+        android:id="@+id/delete_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/first_row"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:src="@drawable/baseline_backspace_24"
+        android:backgroundTint="@android:color/transparent"
+        android:layout_marginEnd="14dp"
         />
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/first_row"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="100dp"
         android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/second_row"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/space_for_calculation"
         >
 
         <Button
             android:id="@+id/clear_btn"
             android:layout_width="wrap_content"
-            android:width="186dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="10dp"
+            android:width="186dp"
             android:text="C"
             android:textSize="30sp"
             />
@@ -53,7 +67,6 @@
             android:id="@+id/division_btn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
             android:text="/"
             android:textSize="30sp"
             />
@@ -62,12 +75,11 @@
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/second_row"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        app:layout_constraintBottom_toTopOf="@id/third_row"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/first_row"
         >
 
         <Button
@@ -101,7 +113,7 @@
             android:id="@+id/multiplication_btn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="X"
+            android:text="x"
             android:textSize="30sp"
             />
 
@@ -109,12 +121,11 @@
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/third_row"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        app:layout_constraintBottom_toTopOf="@id/fourth_row"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/second_row"
         >
 
         <Button
@@ -155,12 +166,11 @@
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/fourth_row"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        app:layout_constraintBottom_toTopOf="@id/fifth_row"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/third_row"
         >
 
         <Button
@@ -203,9 +213,10 @@
         android:id="@+id/fifth_row"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/fourth_row"
         >
 
         <Button
@@ -231,7 +242,6 @@
             android:id="@+id/equal_btn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
             android:backgroundTint="@color/black"
             android:text="="
             android:textSize="30sp"
