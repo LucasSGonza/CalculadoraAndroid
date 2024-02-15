@@ -11,7 +11,6 @@ import com.example.calculadoraandroid.databinding.ActivityMainBinding
 import com.notkamui.keval.Keval
 import com.notkamui.keval.KevalInvalidExpressionException
 import com.notkamui.keval.KevalZeroDivisionException
-import kotlin.math.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -137,37 +136,40 @@ class MainActivity : AppCompatActivity() {
 
             //finish the current calculation and reset some flags
             equalBtn.setOnClickListener {
-                if (result == getString(R.string.error_default)) {
-                    Toast.makeText(
-                        it.context,
-                        getString(R.string.error_division_by_zero),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-
-                //if the user tap again in the equal btn, do the last calc again
-                if (didUserFinishedTheCalc) {
-                    val regexPattern =
-                        Regex("""[+\-*/%]-?\d+(\.\d+)?(?![+\-*/%]\s*-?\d+(\.\d+)?)${'$'}""")
-                    val regexResult = regexPattern.find(lastCalculationDone) //its getting 'null'
-                    regexResult?.let {
-                        Log.i("test", "${regexResult.value}")
-                        result = Keval.eval(regexResult.value).toString()
+                if (spaceForCalculation.text.isNotEmpty()) {
+                    if (result == getString(R.string.error_default)) {
+                        spaceForCalculation.text = result
+                        Toast.makeText(
+                            it.context,
+                            getString(R.string.error_division_by_zero),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
+                    //if result != error Message, result was succeed
+                    else {
+                        //if the user tap again in the equal btn, do the last calc again
+                        if (didUserFinishedTheCalc) {
+                            val regexResult =
+                                validateLastCalculation(lastCalculationDone) //ex: 'x2'
+                            regexResult?.let {
+                                Log.i("test", "$regexResult")
+                                result =
+                                    Keval.eval(validateNumericExpression("$result$regexResult"))
+                                        .toString()
+                            }
+                        }
+                        try {
+                            spaceForCalculation.text =
+                                result.toDouble().toString().replace(",", ".")
+                        } catch (e: NumberFormatException) {
+                            Log.e("error", "$e")
+                        }
+                    }
+                    isTheLastDigitANumber = false
+                    isTheLastDigitAOperator = false
+                    doTheNumberAlreadyHasADecimalPoint = true //the calc always return a double
+                    didUserFinishedTheCalc = true
                 }
-
-                spaceForCalculation.text = String.format("%.5s", result)
-//                spaceForCalculation.text = result
-//                spaceForCalculation.text = try {
-//                    String.format("%.5s", String.format("%.3f", result.toDouble()))
-//                } catch (e: NumberFormatException) {
-//                    getString(R.string.error_in_code)
-//                }
-
-                isTheLastDigitANumber = false
-                isTheLastDigitAOperator = false
-                didUserFinishedTheCalc = true
-                doTheNumberAlreadyHasADecimalPoint = true
             }
 
             //clean the current calculation and reset the flags
@@ -177,20 +179,32 @@ class MainActivity : AppCompatActivity() {
                 isTheLastDigitANumber = false
                 isTheLastDigitAOperator = false
                 doTheNumberAlreadyHasADecimalPoint = false
+                didUserFinishedTheCalc = false
             }
 
             //delete the last digit and verify possible flag reset's
             deleteBtn.setOnClickListener {
                 if (spaceForCalculation.text.isNotEmpty()) {
-                    if (isTheLastDigitAOperator) {
-                        isTheLastDigitAOperator = false
-                    }
-                    if (spaceForCalculation.text.last() == '.') {
-                        doTheNumberAlreadyHasADecimalPoint = false
-                        isTheLastDigitANumber = true
+                    when {
+                        isTheLastDigitAOperator -> isTheLastDigitAOperator = false
+                        spaceForCalculation.text.last() == '.' -> {
+                            doTheNumberAlreadyHasADecimalPoint = false
+                            isTheLastDigitANumber = true
+                        }
                     }
                     didUserFinishedTheCalc = false
-                    spaceForCalculation.text = spaceForCalculation.text.toString().dropLast(1)
+                    spaceForCalculation.text =
+                        if (result == getString(R.string.error_default)) ""
+                        else spaceForCalculation.text.toString().dropLast(1)
+                }
+            }
+
+            integerNumberBtn.setOnClickListener {
+                spaceForCalculation.text = when {
+                    spaceForCalculation.text.isEmpty() -> "-"
+                    spaceForCalculation.text.toString() == "-" -> ""
+                    else -> Keval.eval(validateNumericExpression(spaceForCalculation.text.toString()))
+                        .toString()
                 }
             }
 
@@ -202,11 +216,14 @@ class MainActivity : AppCompatActivity() {
             text?.let {
                 if (text.length < binding.spaceForCalculation.maxLines) {
                     if (text.isNotEmpty()) {
-                        val expression = validateExpression(text.toString())
+                        val expression = validateNumericExpression(text.toString())
                         Log.i("success", "expression1: $expression")
                         try {
                             result = Keval.eval(expression).toString()
-                            lastCalculationDone = expression
+                            if (validateLastCalculation(expression) != null) {
+                                lastCalculationDone = expression
+                                Log.i("success", "last calc done: $lastCalculationDone")
+                            }
                             Log.i("success", "result after calc: $result")
                         } catch (e: KevalInvalidExpressionException) {
                             Log.e("error", "$e")
@@ -226,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun validateExpression(text: String): String {
+    private fun validateNumericExpression(text: String): String {
         var expression = text
             .replace("x", "*")
             .replace("%", "/100*")
@@ -242,13 +259,18 @@ class MainActivity : AppCompatActivity() {
         return expression
     }
 
-//    private fun validateResult(numericResult: Double): String {
-//        return try {
-//            if (numericResult.toInt() % 1 == 0) numericResult.toInt().toString()
-//            else numericResult.toString()
-//        } catch (e: NumberFormatException) {
-//            getString(R.string.error_default)
-//        }
+    private fun validateLastCalculation(expression: String): String? {
+        val regexPattern =
+            Regex("""[+\-*/%]-?\d+(\.\d+)?(?![+\-*/%]*-?\d+(\.\d+)?)${'$'}""")
+        return regexPattern.find(expression)?.value ?: null
+    }
+
+//    private fun validateNumberSignalChange(expression: String): String {
+//        val regexPattern =
+//            Regex("""[-+]+\d+(\.\d+)?${'$'}""")
+//        val regexResult = regexPattern.find(expression) //ex: -3 --> 3
+//
+//        return regexResult.value.removePrefix("-")
 //    }
 
 }
