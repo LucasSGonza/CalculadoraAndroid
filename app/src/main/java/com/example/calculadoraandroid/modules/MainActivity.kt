@@ -10,6 +10,7 @@ import com.example.calculadoraandroid.R
 import com.example.calculadoraandroid.databinding.ActivityMainBinding
 import com.notkamui.keval.Keval
 import com.notkamui.keval.KevalInvalidExpressionException
+import com.notkamui.keval.KevalInvalidSymbolException
 import com.notkamui.keval.KevalZeroDivisionException
 
 class MainActivity : AppCompatActivity() {
@@ -97,17 +98,21 @@ class MainActivity : AppCompatActivity() {
             */
             listOfOperatorsBtn.forEach { btn ->
                 btn.setOnClickListener {
-                    if (spaceForCalculation.text.isNotEmpty()) {
-                        spaceForCalculation.text = when {
-                            isTheLastDigitAOperator -> spaceForCalculation.text.dropLast(1)
-                                .toString() + "${btn.text}"
+                    with(spaceForCalculation.text) {
+                        if (this.isNotEmpty()) {
+                            spaceForCalculation.text = when {
+                                isTheLastDigitAOperator -> this.dropLast(1)
+                                    .toString() + "${btn.text}"
 
-                            else -> spaceForCalculation.text.toString() + "${btn.text}"
+                                this.toString() == getString(R.string.error_default) -> "${btn.text}"
+
+                                else -> this.toString() + "${btn.text}"
+                            }
+                            isTheLastDigitANumber = false
+                            doTheNumberAlreadyHasADecimalPoint = false
+                            isTheLastDigitAOperator = true
+                            didUserFinishedTheCalc = false
                         }
-                        isTheLastDigitANumber = false
-                        doTheNumberAlreadyHasADecimalPoint = false
-                        isTheLastDigitAOperator = true
-                        didUserFinishedTheCalc = false
                     }
                 }
             }
@@ -132,6 +137,7 @@ class MainActivity : AppCompatActivity() {
                     isTheLastDigitANumber = true
                     doTheNumberAlreadyHasADecimalPoint = true
                 }
+                didUserFinishedTheCalc = false
             }
 
             //finish the current calculation and reset some flags
@@ -152,19 +158,30 @@ class MainActivity : AppCompatActivity() {
                             val regexResult =
                                 validateLastCalculation(lastCalculationDone)
                             regexResult?.let {
-                                Log.i("test", "$regexResult")
-                                result =
-                                    Keval.eval(validateNumericExpression("$result$regexResult"))
-                                        .toString()
+                                Log.i("test", "last calc to do: $regexResult")
+                                try {
+                                    result =
+                                        Keval.eval(validateNumericExpression("$result$regexResult"))
+                                            .toString()
+                                } catch (e: KevalInvalidExpressionException) {
+                                    Log.e("error", "$e")
+                                } catch (e: KevalZeroDivisionException) {
+                                    Log.e("error", "$e")
+                                    result = getString(R.string.error_default)
+                                } catch (e: KevalInvalidSymbolException) {
+                                    result = "0"
+                                    isTheLastDigitANumber = true
+                                }
                             }
                         }
                         try {
-                            if (spaceForCalculation.text.first() == '+') {
+                            with(spaceForCalculation.text) {
+                                if (this.first() == '+') {
+                                    spaceForCalculation.text = this.removePrefix("+")
+                                }
                                 spaceForCalculation.text =
-                                    spaceForCalculation.text.removePrefix("+")
+                                    result.toDouble().toString().replace(",", ".")
                             }
-                            spaceForCalculation.text =
-                                result.toDouble().toString().replace(",", ".")
                         } catch (e: NumberFormatException) {
                             Log.e("error", "$e")
                         }
@@ -183,10 +200,11 @@ class MainActivity : AppCompatActivity() {
                 isTheLastDigitANumber = false
                 isTheLastDigitAOperator = false
                 doTheNumberAlreadyHasADecimalPoint = false
-                didUserFinishedTheCalc = false
+                didUserFinishedTheCalc = true
             }
 
             //delete the last digit and verify possible flag reset's
+            //CHANGE TO ALWAYS LOOK FOR THE CURRENT STRING, AND THEN UPDATE, PROBABLY USING REGEX
             deleteBtn.setOnClickListener {
                 if (spaceForCalculation.text.isNotEmpty()) {
                     when {
@@ -207,11 +225,12 @@ class MainActivity : AppCompatActivity() {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
                         isEmpty() -> "-"
-                        toString() == "-" -> ""
+                        this == "-" -> this.toString().removePrefix("-")
                         else -> {
                             val newNumber = validateNumberSignalChange(this.toString())
                             val oldNumber = validateNumberSignalChange(newNumber)
-                            val newCount = this.toString().replace(oldNumber, newNumber)
+                            val newCount = this.toString()
+                                .replace(Regex("""[-+]?\d+(\.\d+)?${'$'}"""), newNumber)
 
                             if (newCount == this.toString()) this.toString()
                                 .replace(oldNumber.removePrefix("+"), newNumber)
@@ -236,7 +255,8 @@ class MainActivity : AppCompatActivity() {
                             Log.i("success", "user finished the calc: $didUserFinishedTheCalc")
                             if (!didUserFinishedTheCalc) {
                                 validateLastCalculation(expression)?.let {
-                                    lastCalculationDone = if (it != result) it else lastCalculationDone
+                                    lastCalculationDone =
+                                        if (it != result) it else lastCalculationDone
                                     Log.i("success", "last calc done: $lastCalculationDone")
                                 }
                             }
@@ -246,6 +266,9 @@ class MainActivity : AppCompatActivity() {
                         } catch (e: KevalZeroDivisionException) {
                             Log.e("error", "$e")
                             result = getString(R.string.error_default)
+                        } catch (e: KevalInvalidSymbolException) {
+                            result = "0"
+                            isTheLastDigitANumber = true
                         }
                     } else {
                         Log.i("test", "calculation was reset")
@@ -265,7 +288,14 @@ class MainActivity : AppCompatActivity() {
             .replace("%", "/100*")
 
         if (expression.first() == '-') {
-            expression = expression.replace("-", "0-")
+            expression = expression.replaceFirst("-", "0-")
+        }
+
+        if (Regex("""[*/%][-+]\d+${'$'}""").find(expression) != null) { //ex: 5*-2
+            val newNumber = Regex("""[\-+]\d+${'$'}""").find(expression)?.value //-2
+            newNumber?.let {
+                expression = expression.replace(newNumber, "(0$newNumber)")
+            }
         }
 
         if (expression.last() == '*') {
