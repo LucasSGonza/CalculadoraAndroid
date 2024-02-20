@@ -19,7 +19,6 @@ class MainActivity : AppCompatActivity() {
 
     //flags to allow or not some action
     private var isTheLastDigitANumber: Boolean = false
-    private var isTheLastDigitAOperator: Boolean = false
     private var doTheNumberAlreadyHasADecimalPoint: Boolean = false
 
     //flag to verify if the user had finished the calc, to perform visual changes
@@ -79,38 +78,26 @@ class MainActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         with(binding) {
 
-            //if the user had finished the calc, a new number will replace the current result
             listOfNumberBtn.forEach { btn ->
                 btn.setOnClickListener {
                     spaceForCalculation.text =
                         if (didUserFinishedTheCalc) "${btn.text}"
                         else spaceForCalculation.text.toString() + "${btn.text}"
                     isTheLastDigitANumber = true
-                    isTheLastDigitAOperator = false
                     didUserFinishedTheCalc = false
                 }
             }
 
-            /*
-            -> if has no count/number been displayed, do not add a operator
-            -> if the last digit in the count is a operator, and the user click in any other operator
-            again, instead of add 2 operators like "9+-", will just replace the oldest: "9+" -> "9-"
-            */
             listOfOperatorsBtn.forEach { btn ->
                 btn.setOnClickListener {
                     with(spaceForCalculation.text) {
                         if (this.isNotEmpty()) {
-                            spaceForCalculation.text = when {
-                                isTheLastDigitAOperator -> this.dropLast(1)
-                                    .toString() + "${btn.text}"
-
-                                this.toString() == getString(R.string.error_default) -> "${btn.text}"
-
-                                else -> this.toString() + "${btn.text}"
-                            }
+                            spaceForCalculation.text =
+                                if (Regex("""\d${'$'}""").find(this) == null)
+                                    this.dropLast(1).toString() + "${btn.text}"
+                                else this.toString() + "${btn.text}"
                             isTheLastDigitANumber = false
                             doTheNumberAlreadyHasADecimalPoint = false
-                            isTheLastDigitAOperator = true
                             didUserFinishedTheCalc = false
                         }
                     }
@@ -125,34 +112,33 @@ class MainActivity : AppCompatActivity() {
             -> if already has a decimal point, do not allow to add another one in the same number
             */
             decimalBtn.setOnClickListener {
-                if (spaceForCalculation.text.isNotEmpty()) {
-                    if (!doTheNumberAlreadyHasADecimalPoint) {
-                        spaceForCalculation.text =
-                            if (isTheLastDigitANumber) spaceForCalculation.text.toString() + "."
-                            else spaceForCalculation.text.toString() + "0."
+                with(spaceForCalculation.text) {
+                    if (this.isNotEmpty()) {
+                        if (!doTheNumberAlreadyHasADecimalPoint) {
+                            spaceForCalculation.text =
+                                if (Regex("""\d${'$'}""").find(this) != null)
+                                    this.toString() + "."
+                                else this.toString() + "0."
+                            doTheNumberAlreadyHasADecimalPoint = true
+                        }
+                    } else {
+                        spaceForCalculation.text = "0."
+                        isTheLastDigitANumber = true
                         doTheNumberAlreadyHasADecimalPoint = true
                     }
-                } else {
-                    spaceForCalculation.text = "0."
-                    isTheLastDigitANumber = true
-                    doTheNumberAlreadyHasADecimalPoint = true
                 }
-                didUserFinishedTheCalc = false
             }
 
             //finish the current calculation and reset some flags
             equalBtn.setOnClickListener {
                 if (spaceForCalculation.text.isNotEmpty()) {
                     if (result == getString(R.string.error_default)) {
-                        spaceForCalculation.text = result
                         Toast.makeText(
                             it.context,
                             getString(R.string.error_division_by_zero),
                             Toast.LENGTH_SHORT
                         ).show()
-                    }
-                    //if result != error Message, result was succeed
-                    else {
+                    } else {
                         //if the user tap again in the equal btn, do the last calc again
                         if (didUserFinishedTheCalc) {
                             val regexResult =
@@ -164,14 +150,17 @@ class MainActivity : AppCompatActivity() {
                                         Keval.eval(validateNumericExpression("$result$regexResult"))
                                             .toString()
                                 } catch (e: KevalInvalidExpressionException) {
-                                    Log.e("error", "$e")
+                                    Log.e("error2", "$e")
+                                    result = "0"
+                                    isTheLastDigitANumber = true
                                 } catch (e: KevalZeroDivisionException) {
                                     Log.e("error", "$e")
                                     result = getString(R.string.error_default)
-                                } catch (e: KevalInvalidSymbolException) {
-                                    result = "0"
-                                    isTheLastDigitANumber = true
                                 }
+//                                catch (e: KevalInvalidSymbolException) {
+//                                    result = "0"
+//                                    isTheLastDigitANumber = true
+//                                }
                             }
                         }
                         try {
@@ -182,42 +171,43 @@ class MainActivity : AppCompatActivity() {
                                 spaceForCalculation.text =
                                     result.toDouble().toString().replace(",", ".")
                             }
+                            isTheLastDigitANumber = false
+                            doTheNumberAlreadyHasADecimalPoint =
+                                true //the calc always return double
+                            didUserFinishedTheCalc = true
                         } catch (e: NumberFormatException) {
                             Log.e("error", "$e")
                         }
                     }
-                    isTheLastDigitANumber = false
-                    isTheLastDigitAOperator = false
-                    doTheNumberAlreadyHasADecimalPoint = true //the calc always return a double
-                    didUserFinishedTheCalc = true
                 }
             }
 
             //clean the current calculation and reset the flags
             clearBtn.setOnClickListener {
+                resetCalculation()
                 spaceForCalculation.text = ""
-                result = ""
-                isTheLastDigitANumber = false
-                isTheLastDigitAOperator = false
-                doTheNumberAlreadyHasADecimalPoint = false
-                didUserFinishedTheCalc = true
             }
 
-            //delete the last digit and verify possible flag reset's
-            //CHANGE TO ALWAYS LOOK FOR THE CURRENT STRING, AND THEN UPDATE, PROBABLY USING REGEX
+            //verify possible flag reset's and then delete the last digit
             deleteBtn.setOnClickListener {
-                if (spaceForCalculation.text.isNotEmpty()) {
-                    when {
-                        isTheLastDigitAOperator -> isTheLastDigitAOperator = false
-                        spaceForCalculation.text.last() == '.' -> {
-                            doTheNumberAlreadyHasADecimalPoint = false
-                            isTheLastDigitANumber = true
+                with(spaceForCalculation.text) {
+                    if (this.isNotEmpty()) {
+                        spaceForCalculation.text = this.toString().dropLast(1)
+                        when {
+                            Regex("""\d${'$'}""").find(spaceForCalculation.text) != null ->
+                                isTheLastDigitANumber = true
+
+                            this.last() == '.' -> {
+                                doTheNumberAlreadyHasADecimalPoint = false
+                                isTheLastDigitANumber = true
+                            }
+
+                            else -> {
+                                isTheLastDigitANumber = false
+                            }
                         }
+                        didUserFinishedTheCalc = false
                     }
-                    didUserFinishedTheCalc = false
-                    spaceForCalculation.text =
-                        if (result == getString(R.string.error_default)) ""
-                        else spaceForCalculation.text.toString().dropLast(1)
                 }
             }
 
@@ -262,24 +252,31 @@ class MainActivity : AppCompatActivity() {
                             }
                             Log.i("success", "result: $result")
                         } catch (e: KevalInvalidExpressionException) {
-                            Log.e("error", "$e")
+                            Log.e("error2", "$e")
+                            result = "0"
+                            isTheLastDigitANumber = true
                         } catch (e: KevalZeroDivisionException) {
                             Log.e("error", "$e")
                             result = getString(R.string.error_default)
-                        } catch (e: KevalInvalidSymbolException) {
-                            result = "0"
-                            isTheLastDigitANumber = true
                         }
+//                        catch (e: KevalInvalidSymbolException) {
+//                            result = "0"
+//                            isTheLastDigitANumber = true
+//                        }
                     } else {
                         Log.i("test", "calculation was reset")
-                        isTheLastDigitANumber = false
-                        isTheLastDigitAOperator = false
-                        doTheNumberAlreadyHasADecimalPoint = false
-                        result = ""
+                        resetCalculation()
                     }
                 }
             }
         }
+    }
+
+    private fun resetCalculation() {
+        result = ""
+        isTheLastDigitANumber = false
+        doTheNumberAlreadyHasADecimalPoint = false
+        didUserFinishedTheCalc = false
     }
 
     private fun validateNumericExpression(text: String): String {
@@ -291,11 +288,13 @@ class MainActivity : AppCompatActivity() {
             expression = expression.replaceFirst("-", "0-")
         }
 
-        if (Regex("""[*/%][-+]\d+${'$'}""").find(expression) != null) { //ex: 5*-2
-            val newNumber = Regex("""[\-+]\d+${'$'}""").find(expression)?.value //-2
-            newNumber?.let {
-                expression = expression.replace(newNumber, "(0$newNumber)")
-            }
+        val optionalNumberCase = validateIntegerNumberInTheMiddleOfCount(expression)
+        optionalNumberCase?.let {
+            expression =
+                expression.replace(
+                    optionalNumberCase,
+                    optionalNumberCase.replace("-", "(0-value)")
+                )
         }
 
         if (expression.last() == '*') {
@@ -305,10 +304,12 @@ class MainActivity : AppCompatActivity() {
         return expression
     }
 
-    private fun validateLastCalculation(expression: String): String? {
-        val regexPattern =
-            Regex("""[+\-*/%]-?\d+(\.\d+)?(?![+\-*/%]*-?\d+(\.\d+)?)${'$'}""")
-        return regexPattern.find(expression)?.value
+    //retornar um Pair de String, a primeira sendo a expressão toda e a segunda somente o numero
+    private fun validateIntegerNumberInTheMiddleOfCount(expression: String): String? {
+        val regexPattern = Regex("""[-+*x/%][-+]\d+${'$'}""") //ex: 5*-2
+        regexPattern.find(expression)?.let {
+            return it?.value //*-2
+        } ?: return null
     }
 
     private fun validateNumberSignalChange(expression: String): String {
@@ -321,8 +322,13 @@ class MainActivity : AppCompatActivity() {
                 regexResult.value.first() == '+' -> regexResult.value.replace("+", "-")
                 else -> "-" + regexResult.value
             }
-        }
-        return getString(R.string.error_default)
+        } ?: return getString(R.string.error_default)
+    }
+
+    private fun validateLastCalculation(expression: String): String? {
+        val regexPattern =
+            Regex("""[+\-*x/%]-?\d+(\.\d+)?(?![+\-*/%]*-?\d+(\.\d+)?)${'$'}""")
+        return regexPattern.find(expression)?.value
     }
 
 }
