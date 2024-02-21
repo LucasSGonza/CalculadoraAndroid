@@ -10,7 +10,6 @@ import com.example.calculadoraandroid.R
 import com.example.calculadoraandroid.databinding.ActivityMainBinding
 import com.notkamui.keval.Keval
 import com.notkamui.keval.KevalInvalidExpressionException
-import com.notkamui.keval.KevalInvalidSymbolException
 import com.notkamui.keval.KevalZeroDivisionException
 
 class MainActivity : AppCompatActivity() {
@@ -37,6 +36,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         setupBtnLists()
         setupListeners()
+        setupVisual()
     }
 
     private fun setupListeners() {
@@ -73,6 +73,16 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         )
+    }
+
+    private fun setupVisual() {
+        listOfNumberBtn.forEach { it.setBackgroundColor(getColor(R.color.dark_blue)) }
+        listOfOperatorsBtn.forEach { it.setBackgroundColor(getColor(R.color.orange)) }
+        with(binding) {
+            integerNumberBtn.setBackgroundColor(getColor(R.color.dark_blue))
+            decimalBtn.setBackgroundColor(getColor(R.color.dark_blue))
+            parenthesesBtn.setBackgroundColor(getColor(R.color.orange))
+        }
     }
 
     private fun setupClickListeners() {
@@ -117,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                         if (!doTheNumberAlreadyHasADecimalPoint) {
                             spaceForCalculation.text =
                                 if (Regex("""\d${'$'}""").find(this) != null)
-                                    this.toString() + "."
+                                    "$this."
                                 else this.toString() + "0."
                             doTheNumberAlreadyHasADecimalPoint = true
                         }
@@ -157,10 +167,6 @@ class MainActivity : AppCompatActivity() {
                                     Log.e("error", "$e")
                                     result = getString(R.string.error_default)
                                 }
-//                                catch (e: KevalInvalidSymbolException) {
-//                                    result = "0"
-//                                    isTheLastDigitANumber = true
-//                                }
                             }
                         }
                         try {
@@ -188,24 +194,16 @@ class MainActivity : AppCompatActivity() {
                 spaceForCalculation.text = ""
             }
 
-            //verify possible flag reset's and then delete the last digit
             deleteBtn.setOnClickListener {
                 with(spaceForCalculation.text) {
                     if (this.isNotEmpty()) {
-                        spaceForCalculation.text = this.toString().dropLast(1)
-                        when {
-                            Regex("""\d${'$'}""").find(spaceForCalculation.text) != null ->
-                                isTheLastDigitANumber = true
-
-                            this.last() == '.' -> {
-                                doTheNumberAlreadyHasADecimalPoint = false
-                                isTheLastDigitANumber = true
-                            }
-
-                            else -> {
-                                isTheLastDigitANumber = false
-                            }
+                        if (this.last() == '.') {
+                            doTheNumberAlreadyHasADecimalPoint = false
+                            isTheLastDigitANumber = true
                         }
+                        spaceForCalculation.text = this.toString().dropLast(1)
+                        isTheLastDigitANumber =
+                            Regex("""\d${'$'}""").find(spaceForCalculation.text) != null
                         didUserFinishedTheCalc = false
                     }
                 }
@@ -214,7 +212,7 @@ class MainActivity : AppCompatActivity() {
             integerNumberBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
-                        isEmpty() -> "-"
+                        isEmpty() || !isTheLastDigitANumber -> "$this-"
                         this == "-" -> this.toString().removePrefix("-")
                         else -> {
                             val newNumber = validateNumberSignalChange(this.toString())
@@ -226,6 +224,16 @@ class MainActivity : AppCompatActivity() {
                                 .replace(oldNumber.removePrefix("+"), newNumber)
                             else newCount
                         }
+                    }
+                }
+            }
+
+            parenthesesBtn.setOnClickListener {
+                spaceForCalculation.text = with(spaceForCalculation.text) {
+                    when {
+                        Regex("""\(+([-+]?\d*(\.\d+)?[+\-*/%]*\d*(\.\d+)?)+\)+${'$'}""").find(this.toString()) != null -> "$this("
+                        Regex("""\(""").find(this.toString()) == null -> "$this("
+                        else -> "$this)"
                     }
                 }
             }
@@ -277,6 +285,7 @@ class MainActivity : AppCompatActivity() {
         isTheLastDigitANumber = false
         doTheNumberAlreadyHasADecimalPoint = false
         didUserFinishedTheCalc = false
+        lastCalculationDone = ""
     }
 
     private fun validateNumericExpression(text: String): String {
@@ -288,13 +297,13 @@ class MainActivity : AppCompatActivity() {
             expression = expression.replaceFirst("-", "0-")
         }
 
-        val optionalNumberCase = validateIntegerNumberInTheMiddleOfCount(expression)
-        optionalNumberCase?.let {
+        val listOfIntegerNumberCases = validateIntegerNumberInTheMiddleOfCount(expression)
+        listOfIntegerNumberCases.forEach { value ->
             expression =
-                expression.replace(
-                    optionalNumberCase,
-                    optionalNumberCase.replace("-", "(0-value)")
-                )
+                expression
+                    .replace(value, value + "f")
+                    .replace(value + "f", "(0$value)")
+                    .replace("0(0$value)", "0$value")
         }
 
         if (expression.last() == '*') {
@@ -304,12 +313,17 @@ class MainActivity : AppCompatActivity() {
         return expression
     }
 
-    //retornar um Pair de String, a primeira sendo a expressão toda e a segunda somente o numero
-    private fun validateIntegerNumberInTheMiddleOfCount(expression: String): String? {
-        val regexPattern = Regex("""[-+*x/%][-+]\d+${'$'}""") //ex: 5*-2
-        regexPattern.find(expression)?.let {
-            return it?.value //*-2
-        } ?: return null
+    private fun validateIntegerNumberInTheMiddleOfCount(expression: String): MutableList<String> {
+        val regexResult = Regex("""[-+*x/%][-+]\d+""").findAll(expression, 0)
+        var groupValues = mutableListOf<String>()
+
+        regexResult.forEach { matchResult -> //*-2
+            Regex("""[-+]\d+""").find(matchResult.value)?.let {
+                groupValues.add(it.value)
+            }
+        }
+        Log.i("test", "$groupValues")
+        return groupValues
     }
 
     private fun validateNumberSignalChange(expression: String): String {

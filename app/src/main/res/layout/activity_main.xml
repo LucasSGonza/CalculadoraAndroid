@@ -47,8 +47,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="10dp"
-            android:width="186dp"
             android:text="C"
+            android:textSize="30sp"
+            android:backgroundTint="@color/purple"
+            />
+
+        <Button
+            android:id="@+id/parentheses_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="( )"
             android:textSize="30sp"
             />
 
