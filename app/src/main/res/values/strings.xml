@@ -4,4 +4,5 @@
     <string name="error_default">Erro</string>
     <string name="error_division_by_zero">Não é possível fazer divisões por zero!</string>
     <string name="error_in_code">Erro na lógica da Calculadora!</string>
+    <string name="error_invalid_format">Formato usado inválido</string>
 </resources>

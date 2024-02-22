@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
                     with(spaceForCalculation.text) {
                         if (this.isNotEmpty()) {
                             spaceForCalculation.text =
-                                if (Regex("""\d${'$'}""").find(this) == null)
+                                if (Regex("""[\d()]${'$'}""").find(this) == null)
                                     this.dropLast(1).toString() + "${btn.text}"
                                 else this.toString() + "${btn.text}"
                             isTheLastDigitANumber = false
@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity() {
             integerNumberBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
-                        isEmpty() || !isTheLastDigitANumber -> "$this-"
+                        isEmpty() || Regex("""[+*x/%()]${'$'}""").find(this) != null -> "$this-"
                         this == "-" -> this.toString().removePrefix("-")
                         else -> {
                             val newNumber = validateNumberSignalChange(this.toString())
@@ -231,9 +231,10 @@ class MainActivity : AppCompatActivity() {
             parenthesesBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
-                        Regex("""\(+([-+]?\d*(\.\d+)?[+\-*/%]*\d*(\.\d+)?)+\)+${'$'}""").find(this.toString()) != null -> "$this("
-                        Regex("""\(""").find(this.toString()) == null -> "$this("
-                        else -> "$this)"
+//                        Regex("""\(+([-+]?\d*(\.\d+)?[+\-*/%]*\d*(\.\d+)?)+\)+${'$'}""")
+//                            .find(this.toString()) != null -> "$this("
+                        (Regex("""\((?![^\n]*\))""").find(this.toString()) != null) -> "$this)"
+                        else -> "$this("
                     }
                 }
             }
@@ -262,6 +263,11 @@ class MainActivity : AppCompatActivity() {
                         } catch (e: KevalInvalidExpressionException) {
                             Log.e("error2", "$e")
                             result = "0"
+                            Toast.makeText(
+                                this,
+                                getString(R.string.error_invalid_format),
+                                Toast.LENGTH_SHORT
+                            )
                             isTheLastDigitANumber = true
                         } catch (e: KevalZeroDivisionException) {
                             Log.e("error", "$e")
@@ -298,12 +304,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         val listOfIntegerNumberCases = validateIntegerNumberInTheMiddleOfCount(expression)
-        listOfIntegerNumberCases.forEach { value ->
-            expression =
-                expression
-                    .replace(value, value + "f")
-                    .replace(value + "f", "(0$value)")
-                    .replace("0(0$value)", "0$value")
+        listOfIntegerNumberCases.forEach { value -> //*-2
+            val numberToAdapt = Regex("""[-+]\d+""").find(value)
+            numberToAdapt?.let {
+                expression =
+                    expression
+                        .replace(
+                            value,
+                            value.replace(numberToAdapt.value, "(0${numberToAdapt.value})")
+                        )
+                        .replace(
+                            "((0${numberToAdapt.value}))",
+                            "(0${numberToAdapt.value})"
+                        ) //validate cases like: ((0-2))
+            }
         }
 
         if (expression.last() == '*') {
@@ -314,13 +328,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun validateIntegerNumberInTheMiddleOfCount(expression: String): MutableList<String> {
-        val regexResult = Regex("""[-+*x/%][-+]\d+""").findAll(expression, 0)
+        val regexResult = Regex("""[-+*x/%]\(?[-+]\d+\)?""").findAll(expression, 0)
         var groupValues = mutableListOf<String>()
 
         regexResult.forEach { matchResult -> //*-2
-            Regex("""[-+]\d+""").find(matchResult.value)?.let {
-                groupValues.add(it.value)
-            }
+            groupValues.add(matchResult.value)
+//            Regex("""[-+]\d+""").find(matchResult.value)?.let {
+//                groupValues.add(it.value)
+//            }
         }
         Log.i("test", "$groupValues")
         return groupValues
