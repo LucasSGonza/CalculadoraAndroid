@@ -171,9 +171,17 @@ class MainActivity : AppCompatActivity() {
                         }
                         try {
                             with(spaceForCalculation.text) {
-                                if (this.first() == '+') {
-                                    spaceForCalculation.text = this.removePrefix("+")
-                                }
+//                                if (this.first() == '+') {
+//                                    spaceForCalculation.text = this.removePrefix("+")
+//                                }
+
+//                                if (Regex("""\(""").find(this) != null && Regex("""\)${'$'}""").find(
+//                                        this
+//                                    ) == null
+//                                ) {
+//                                    spaceForCalculation.text = this.toString().plus(")")
+//                                }
+
                                 spaceForCalculation.text =
                                     result.toDouble().toString().replace(",", ".")
                             }
@@ -212,17 +220,17 @@ class MainActivity : AppCompatActivity() {
             integerNumberBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
-                        isEmpty() || Regex("""[+*x/%()]${'$'}""").find(this) != null -> "$this-"
-                        this == "-" -> this.toString().removePrefix("-")
-                        else -> {
-                            val newNumber = validateNumberSignalChange(this.toString())
-                            val oldNumber = validateNumberSignalChange(newNumber)
-                            val newCount = this.toString()
-                                .replace(Regex("""[-+]?\d+(\.\d+)?${'$'}"""), newNumber)
+                        isEmpty() || Regex("""[+*x/%]${'$'}""").find(this) != null -> "$this(-"
+                        Regex("""\(-${'$'}""").find(this) != null -> this.toString()
+                            .removeSuffix("(-")
 
-                            if (newCount == this.toString()) this.toString()
-                                .replace(oldNumber.removePrefix("+"), newNumber)
-                            else newCount
+                        this.last() == '-' && this.removeSuffix("(-") != this -> "$this(-"
+                        else -> {
+                            val newNumber = validateNumberSignalChange(this.toString()) //(-2
+                            val oldNumber = validateNumberSignalChange(newNumber) //+2
+                            val newCount = this.toString()
+                                .replace(oldNumber, newNumber)
+                            newCount
                         }
                     }
                 }
@@ -230,12 +238,8 @@ class MainActivity : AppCompatActivity() {
 
             parenthesesBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
-                    when {
-//                        Regex("""\(+([-+]?\d*(\.\d+)?[+\-*/%]*\d*(\.\d+)?)+\)+${'$'}""")
-//                            .find(this.toString()) != null -> "$this("
-                        (Regex("""\((?![^\n]*\))""").find(this.toString()) != null) -> "$this)"
-                        else -> "$this("
-                    }
+                    if (Regex("""\((?![^\n]*\))""").find(this.toString()) != null) "$this)"
+                    else "$this("
                 }
             }
 
@@ -263,20 +267,11 @@ class MainActivity : AppCompatActivity() {
                         } catch (e: KevalInvalidExpressionException) {
                             Log.e("error2", "$e")
                             result = "0"
-                            Toast.makeText(
-                                this,
-                                getString(R.string.error_invalid_format),
-                                Toast.LENGTH_SHORT
-                            )
                             isTheLastDigitANumber = true
                         } catch (e: KevalZeroDivisionException) {
                             Log.e("error", "$e")
                             result = getString(R.string.error_default)
                         }
-//                        catch (e: KevalInvalidSymbolException) {
-//                            result = "0"
-//                            isTheLastDigitANumber = true
-//                        }
                     } else {
                         Log.i("test", "calculation was reset")
                         resetCalculation()
@@ -299,13 +294,13 @@ class MainActivity : AppCompatActivity() {
             .replace("x", "*")
             .replace("%", "/100*")
 
-        if (expression.first() == '-') {
-            expression = expression.replaceFirst("-", "0-")
-        }
+//        if (expression.first() == '-') {
+//            expression = expression.replaceFirst("-", "0-")
+//        }
 
         val listOfIntegerNumberCases = validateIntegerNumberInTheMiddleOfCount(expression)
-        listOfIntegerNumberCases.forEach { value -> //*-2
-            val numberToAdapt = Regex("""[-+]\d+""").find(value)
+        listOfIntegerNumberCases.forEach { value -> //*-2 , /(-2)
+            val numberToAdapt = Regex("""[-+]\d+""").find(value) //-2
             numberToAdapt?.let {
                 expression =
                     expression
@@ -330,28 +325,21 @@ class MainActivity : AppCompatActivity() {
     private fun validateIntegerNumberInTheMiddleOfCount(expression: String): MutableList<String> {
         val regexResult = Regex("""[-+*x/%]\(?[-+]\d+\)?""").findAll(expression, 0)
         var groupValues = mutableListOf<String>()
-
         regexResult.forEach { matchResult -> //*-2
             groupValues.add(matchResult.value)
-//            Regex("""[-+]\d+""").find(matchResult.value)?.let {
-//                groupValues.add(it.value)
-//            }
         }
         Log.i("test", "$groupValues")
         return groupValues
     }
 
     private fun validateNumberSignalChange(expression: String): String {
-        val regexPattern =
-            Regex("""[-+]?\d+(\.\d+)?${'$'}""")
-        val regexResult = regexPattern.find(expression)
-        regexResult?.let {
-            return when {
-                regexResult.value.first() == '-' -> regexResult.value.replace("-", "+")
-                regexResult.value.first() == '+' -> regexResult.value.replace("+", "-")
-                else -> "-" + regexResult.value
-            }
-        } ?: return getString(R.string.error_default)
+        Regex("""\(?[-+]?\d+(\.\d+)?\)?${'$'}""").find(expression)
+            ?.let { matchResult ->  // -2 , (-5), ...
+                return if (matchResult.value.contains("(-"))
+                    matchResult.value.removePrefix("(-")
+                else
+                    "(-${matchResult.value.removePrefix("+").removePrefix("-")}"
+            } ?: return getString(R.string.error_default)
     }
 
     private fun validateLastCalculation(expression: String): String? {
