@@ -220,17 +220,23 @@ class MainActivity : AppCompatActivity() {
             integerNumberBtn.setOnClickListener {
                 spaceForCalculation.text = with(spaceForCalculation.text) {
                     when {
-                        isEmpty() || Regex("""[+*x/%]${'$'}""").find(this) != null -> "$this(-"
-                        Regex("""\(-${'$'}""").find(this) != null -> this.toString()
-                            .removeSuffix("(-")
+                        isEmpty() || Regex("""[+*x/%]${'$'}""").find(this) != null ->
+                            "$this(-"
 
-                        this.last() == '-' && this.removeSuffix("(-") != this -> "$this(-"
+                        Regex("""\(-${'$'}""").find(this) != null ->
+                            this.toString().removeSuffix("(-")
+
+                        this.last() == '-' && (this.removeSuffix("(-") != this) ->
+                            "$this(-"
+
                         else -> {
-                            val newNumber = validateNumberSignalChange(this.toString()) //(-2
-                            val oldNumber = validateNumberSignalChange(newNumber) //+2
-                            val newCount = this.toString()
-                                .replace(oldNumber, newNumber)
-                            newCount
+                            var newNumber = validateNumberSignalChange(this.toString())
+                            var oldNumber = validateNumberSignalChange(newNumber)
+                            if (this.last() == ')') {
+                                oldNumber = oldNumber.plus(")")
+                            }
+                            val newCount = this.toString() + "f"
+                            newCount.replace(oldNumber + "f", newNumber)
                         }
                     }
                 }
@@ -294,9 +300,9 @@ class MainActivity : AppCompatActivity() {
             .replace("x", "*")
             .replace("%", "/100*")
 
-//        if (expression.first() == '-') {
-//            expression = expression.replaceFirst("-", "0-")
-//        }
+        if (expression.first() == '-') {
+            expression = expression.replaceFirst("-", "0-")
+        }
 
         val listOfIntegerNumberCases = validateIntegerNumberInTheMiddleOfCount(expression)
         listOfIntegerNumberCases.forEach { value -> //*-2 , /(-2)
@@ -324,7 +330,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun validateIntegerNumberInTheMiddleOfCount(expression: String): MutableList<String> {
         val regexResult = Regex("""[-+*x/%]\(?[-+]\d+\)?""").findAll(expression, 0)
-        var groupValues = mutableListOf<String>()
+        val groupValues = mutableListOf<String>()
         regexResult.forEach { matchResult -> //*-2
             groupValues.add(matchResult.value)
         }
@@ -336,15 +342,15 @@ class MainActivity : AppCompatActivity() {
         Regex("""\(?[-+]?\d+(\.\d+)?\)?${'$'}""").find(expression)
             ?.let { matchResult ->  // -2 , (-5), ...
                 return if (matchResult.value.contains("(-"))
-                    matchResult.value.removePrefix("(-")
+                    matchResult.value.removePrefix("(-").removeSuffix(")")
                 else
-                    "(-${matchResult.value.removePrefix("+").removePrefix("-")}"
+                    "(-${matchResult.value}"
             } ?: return getString(R.string.error_default)
     }
 
     private fun validateLastCalculation(expression: String): String? {
         val regexPattern =
-            Regex("""[+\-*x/%]-?\d+(\.\d+)?(?![+\-*/%]*-?\d+(\.\d+)?)${'$'}""")
+            Regex("""[+\-*x/%]\(?([-+]?\d+(\.\d+)?)*[-+]?\d+(\.\d+)?\)?${'$'}""")
         return regexPattern.find(expression)?.value
     }
 
