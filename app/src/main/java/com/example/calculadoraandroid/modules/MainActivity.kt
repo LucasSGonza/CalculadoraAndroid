@@ -11,6 +11,7 @@ import com.example.calculadoraandroid.databinding.ActivityMainBinding
 import com.notkamui.keval.Keval
 import com.notkamui.keval.KevalInvalidExpressionException
 import com.notkamui.keval.KevalZeroDivisionException
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         setupBtnLists()
         setupListeners()
         setupVisual()
+        supportActionBar?.hide()
     }
 
     private fun setupListeners() {
@@ -170,21 +172,9 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         try {
-                            with(spaceForCalculation.text) {
-//                                if (this.first() == '+') {
-//                                    spaceForCalculation.text = this.removePrefix("+")
-//                                }
+                            spaceForCalculation.text =
+                                result.toDouble().toString().replace(",", ".")
 
-//                                if (Regex("""\(""").find(this) != null && Regex("""\)${'$'}""").find(
-//                                        this
-//                                    ) == null
-//                                ) {
-//                                    spaceForCalculation.text = this.toString().plus(")")
-//                                }
-
-                                spaceForCalculation.text =
-                                    result.toDouble().toString().replace(",", ".")
-                            }
                             isTheLastDigitANumber = false
                             doTheNumberAlreadyHasADecimalPoint =
                                 true //the calc always return double
@@ -243,9 +233,16 @@ class MainActivity : AppCompatActivity() {
             }
 
             parenthesesBtn.setOnClickListener {
-                spaceForCalculation.text = with(spaceForCalculation.text) {
-                    if (Regex("""\((?![^\n]*\))""").find(this.toString()) != null) "$this)"
-                    else "$this("
+                with(spaceForCalculation.text) {
+                    val openingParentheses = this.filter { it == '(' }
+                    val closingParentheses = this.filter { it == ')' }
+                    var parenthesesToAdd =
+                        if (openingParentheses.count() > closingParentheses.count()
+//                            && Regex("""\((?![-+*x/%]\(?[-+]?\d+(\.\d+)?\)?)${'$'}""")
+//                                .find(this) == null
+                        )
+                            ")" else "("
+                    spaceForCalculation.text = "$this$parenthesesToAdd"
                 }
             }
 
@@ -261,6 +258,7 @@ class MainActivity : AppCompatActivity() {
                         Log.i("success", "expression: $expression")
                         try {
                             result = Keval.eval(expression).toString()
+//                            Log.i("test", "result2: $result2")
                             Log.i("success", "user finished the calc: $didUserFinishedTheCalc")
                             if (!didUserFinishedTheCalc) {
                                 validateLastCalculation(expression)?.let {
@@ -277,6 +275,8 @@ class MainActivity : AppCompatActivity() {
                         } catch (e: KevalZeroDivisionException) {
                             Log.e("error", "$e")
                             result = getString(R.string.error_default)
+                        } catch (e: NumberFormatException) {
+
                         }
                     } else {
                         Log.i("test", "calculation was reset")
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
             .replace("x", "*")
             .replace("%", "/100*")
 
-        if (expression.first() == '-') {
+        if (expression.first() == '-' || expression.removePrefix("(-") != expression) {
             expression = expression.replaceFirst("-", "0-")
         }
 
@@ -342,16 +342,28 @@ class MainActivity : AppCompatActivity() {
         Regex("""\(?[-+]?\d+(\.\d+)?\)?${'$'}""").find(expression)
             ?.let { matchResult ->  // -2 , (-5), ...
                 return if (matchResult.value.contains("(-"))
-                    matchResult.value.removePrefix("(-").removeSuffix(")")
+                    matchResult.value
+                        .removePrefix("(-")
+                        .removeSuffix(")")
+                        .removePrefix("+")
+                        .removePrefix("-")
                 else
-                    "(-${matchResult.value}"
+                    "(-${
+                        matchResult.value
+                            .removePrefix("+")
+                            .removePrefix("-")
+                    }"
             } ?: return getString(R.string.error_default)
     }
 
     private fun validateLastCalculation(expression: String): String? {
         val regexPattern =
-            Regex("""[+\-*x/%]\(?([-+]?\d+(\.\d+)?)*[-+]?\d+(\.\d+)?\)?${'$'}""")
-        return regexPattern.find(expression)?.value
+            Regex("""[-+*x/%]\(?([-+]?\d+(\.\d+)?)*[-+]?\d+(\.\d+)?\)?${'$'}""")
+        val regexResult = regexPattern.find(expression)?.value
+        regexResult?.let {
+            return if (it.contains("(")) it
+            else Regex("""[-+*x/%]\(?[-+]?\d+(\.\d+)?\)?${'$'}""").find(it)?.value
+        } ?: return null
     }
 
 }
