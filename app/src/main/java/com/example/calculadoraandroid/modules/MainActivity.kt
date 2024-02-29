@@ -236,10 +236,10 @@ class MainActivity : AppCompatActivity() {
                 with(spaceForCalculation.text) {
                     val openingParentheses = this.filter { it == '(' }
                     val closingParentheses = this.filter { it == ')' }
-                    var parenthesesToAdd =
+                    val parenthesesToAdd =
                         if (openingParentheses.count() > closingParentheses.count()
-//                            && Regex("""\((?![-+*x/%]\(?[-+]?\d+(\.\d+)?\)?)${'$'}""")
-//                                .find(this) == null
+                            && Regex("""\((?![-+*x/%]\(?[-+]?\d+(\.\d+)?\)?)${'$'}""")
+                                .find(this) == null
                         )
                             ")" else "("
                     spaceForCalculation.text = "$this$parenthesesToAdd"
@@ -258,7 +258,6 @@ class MainActivity : AppCompatActivity() {
                         Log.i("success", "expression: $expression")
                         try {
                             result = Keval.eval(expression).toString()
-//                            Log.i("test", "result2: $result2")
                             Log.i("success", "user finished the calc: $didUserFinishedTheCalc")
                             if (!didUserFinishedTheCalc) {
                                 validateLastCalculation(expression)?.let {
@@ -358,11 +357,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun validateLastCalculation(expression: String): String? {
         val regexPattern =
-            Regex("""[-+*x/%]\(?([-+]?\d+(\.\d+)?)*[-+]?\d+(\.\d+)?\)?${'$'}""")
+            Regex("""[-+*x/%]\(?[-+]?\d+(\.\d+)?\)?${'$'}""")
         val regexResult = regexPattern.find(expression)?.value
-        regexResult?.let {
-            return if (it.contains("(")) it
-            else Regex("""[-+*x/%]\(?[-+]?\d+(\.\d+)?\)?${'$'}""").find(it)?.value
+        regexResult?.let {// *(2) , *(2x2) returns -> x2), x(-2)
+            return if (it.contains(")"))
+                Regex("""[-+*x/%]\(?(\(?[-+*x/%]?\d+(\.\d+)?\)?)+\)?${'$'}""").find(expression)?.value
+            else it
         } ?: return null
     }
 
